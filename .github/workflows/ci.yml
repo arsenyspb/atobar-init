@@ -1,0 +1,22 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        run: shellcheck onboard.sh tests/test_onboard.sh
+      - name: tests
+        run: |
+          git config --global user.name ci
+          git config --global user.email ci@example.com
+          bash tests/test_onboard.sh
