@@ -58,6 +58,7 @@ grep -q "Authorization" "$W/curl.log" && fail "token passed on curl argv"
 git -C "$W/remote.git" show atobar/onboard:.github/workflows/flow-trigger.yml | grep -q "flow Trigger" || fail "trigger not pushed"
 [ "$(git -C "$W/clone" rev-parse --abbrev-ref HEAD)" = main ] || fail "did not return to original branch"
 grep -q "evaluation spec" "$W/issue.body" || fail "spec issue body missing"
+grep -q "Build from zero" "$W/issue.body" && fail "non-empty repo got build-from-zero section"
 grep -q "label create flow:onboard" "$W/gh.log" || fail "label not created"
 echo "ok happy path"
 
@@ -91,6 +92,27 @@ run || { cat "$W/out"; fail "existing-secret path failed"; }
 [ -e "$W/secret.value" ] && fail "secret overwritten without ATOBAR_ROTATE"
 unset FAKE_HAS_SECRET
 echo "ok keeps existing secret"
+
+# Empty repository: the trigger becomes the first commit on main and the spec asks what to build.
+setup
+rm -rf "$W/remote.git" "$W/clone"; git init -q --bare -b main "$W/remote.git"
+git clone -q "$W/remote.git" "$W/clone" 2>/dev/null
+echo atb_good >"$W/token"; export ATOBAR_TOKEN_FILE="$W/token"
+run || { cat "$W/out"; fail "empty repo exited non-zero"; }
+git -C "$W/remote.git" show main:.github/workflows/flow-trigger.yml | grep -q "flow Trigger" || fail "trigger not on main"
+git -C "$W/remote.git" show main:README.md >/dev/null || fail "README not committed"
+[ "$(git -C "$W/remote.git" rev-list --count main)" = 1 ] || fail "expected exactly one commit"
+grep -q "pr create" "$W/gh.log" && fail "opened a PR against an empty repo"
+grep -q "Build from zero" "$W/issue.body" || fail "spec issue lacks build-from-zero section"
+echo "ok empty repository"
+
+# Empty on GitHub but the clone has unpushed commits: stop before touching anything.
+setup
+rm -rf "$W/remote.git"; git init -q --bare -b main "$W/remote.git"
+run && fail "ran with unpushed local commits"
+grep -q "push them first" "$W/out" || fail "missing push-first message"
+grep -qE "secret set|issue create" "$W/gh.log" && fail "mutated with unpushed commits"
+echo "ok unpushed clone"
 
 # Outside a git repository.
 setup
