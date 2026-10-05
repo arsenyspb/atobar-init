@@ -29,11 +29,15 @@ bash onboard.sh
 | Checks | Detects `owner/repo` from the clone, checks you are an admin and the Control Panel is reachable | nothing |
 | 1. GitHub App | Asks you to confirm the App is installed, or opens its install page | nothing |
 | 2. Token | Reads the tenant token at a hidden prompt, confirms with the Control Panel that it belongs to this repository, saves it as the `ATOBAR_TENANT_TOKEN` Actions secret | repository secret |
-| 3. Trigger | Downloads `.github/workflows/flow-trigger.yml` from the Control Panel and opens a pull request adding it (branch `atobar/onboard`) | branch + PR |
+| 3. Trigger | Downloads `.github/workflows/flow-trigger.yml` from the Control Panel and opens a pull request adding it (branch `atobar/onboard`). In an empty repository it pushes the first commit (README + trigger) instead | branch + PR, or first commit |
 | 4. Evaluation spec | Opens an issue labelled `flow:onboard` with the evaluation spec template | label + issue |
 | 5. Next steps | Prints what happens until atobar-flow handles the repository end to end | nothing |
 
 Each mutating step asks first. Re-running is safe: finished stages are skipped. The token is never printed, written to disk or passed on a command line.
+
+### Empty repositories
+
+A repository with no commits can be onboarded to have atobar-flow build it from zero. There is no base branch to open a pull request against, so stage 3 pushes the first commit to the default branch with a README and the trigger workflow. The evaluation spec issue then gets a **Build from zero** section: describe the language, layout and first user-visible milestone there. If the clone has local commits that were never pushed, the script stops and asks you to push them first.
 
 The stages after this script (spec review, metrics workflow, shadow calibration, activation) are described in the [onboarding guide](https://cp.karar.asia/onboarding).
 
